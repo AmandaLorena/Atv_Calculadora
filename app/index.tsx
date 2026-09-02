@@ -1,254 +1,270 @@
 import { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+import { CalculatorButton } from "../components/CalculatorButton";
+import { CalculatorDisplay } from "../components/CalculatorDisplay";
+import {
+  calculateExpression,
+  calculateSquareRoot,
+  canAddDecimal,
+  canAddOperator,
+  getLastCharacter,
+  isOperator,
+  type Operator,
+} from "../utils/calculator";
+import { formatResult } from "../utils/formatter";
+
+const NUMBER_BUTTONS = [
+  ["7", "8", "9"],
+  ["4", "5", "6"],
+  ["1", "2", "3"],
+];
+
+const OPERATOR_BUTTONS: Operator[] = ["*", "-", "+"];
 
 export default function App() {
   const [display, setDisplay] = useState("0");
+  const [hasResult, setHasResult] = useState(false);
 
-  const handleNumber = (num: string) => {
-    setDisplay(display === "0" ? num : display + num);
-  };
-
-  const handleOperator = (operator: string) => {
-    const lastChar = display[display.length - 1];
-
-    if (
-      lastChar !== "+" &&
-      lastChar !== "-" &&
-      lastChar !== "*" &&
-      lastChar !== "/" &&
-      display !== "0"
-    ) {
-      setDisplay(display + operator);
-    }
-  };
-
-  const handleDot = () => {
-    if (display.includes("+")) {
-      const partes = display.split("+");
-      if (!partes[1].includes(".")) {
-        setDisplay(display + ".");
-      }
-    } else if (display.includes("-")) {
-      const partes = display.split("-");
-      if (!partes[1].includes(".")) {
-        setDisplay(display + ".");
-      }
-    } else if (display.includes("*")) {
-      const partes = display.split("*");
-      if (!partes[1].includes(".")) {
-        setDisplay(display + ".");
-      }
-    } else if (display.includes("/")) {
-      const partes = display.split("/");
-      if (!partes[1].includes(".")) {
-        setDisplay(display + ".");
-      }
-    } else {
-      if (!display.includes(".")) {
-        setDisplay(display + ".");
-      }
-    }
-  };
-
-  const handleSqrt = () => {
-    const num = parseFloat(display);
-
-    if (num >= 0) {
-      const resultado = Math.sqrt(num);
-      setDisplay(resultado.toString());
-    }
-  };
-
-  const handleEquals = () => {
-    if (
-      display.endsWith("+") ||
-      display.endsWith("-") ||
-      display.endsWith("*") ||
-      display.endsWith("/")
-    ) {
+  function handleNumber(number: string) {
+    if (display === "Erro" || hasResult) {
+      setDisplay(number);
+      setHasResult(false);
       return;
     }
 
-    if (display.includes("+")) {
-      const partes = display.split("+");
-      const num1 = parseFloat(partes[0]);
-      const num2 = parseFloat(partes[1]);
-      const resultado = num1 + num2;
-      setDisplay(resultado.toString());
-    } else if (display.includes("-")) {
-      const partes = display.split("-");
-      const num1 = parseFloat(partes[0]);
-      const num2 = parseFloat(partes[1]);
-      const resultado = num1 - num2;
-      setDisplay(resultado.toString());
-    } else if (display.includes("*")) {
-      const partes = display.split("*");
-      const num1 = parseFloat(partes[0]);
-      const num2 = parseFloat(partes[1]);
-      const resultado = num1 * num2;
-      setDisplay(resultado.toString());
-    } else if (display.includes("/")) {
-      const partes = display.split("/");
-      const num1 = parseFloat(partes[0]);
-      const num2 = parseFloat(partes[1]);
-
-      if (num2 === 0) {
-        setDisplay("Erro");
-      } else {
-        const resultado = num1 / num2;
-        setDisplay(resultado.toString());
-      }
+    if (display === "0") {
+      setDisplay(number);
+      return;
     }
-  };
+
+    setDisplay((current) => `${current}${number}`);
+  }
+
+  function handleOperator(operator: Operator) {
+    if (display === "Erro") {
+      return;
+    }
+
+    if (!canAddOperator(display)) {
+      return;
+    }
+
+    setDisplay((current) => `${current}${operator}`);
+    setHasResult(false);
+  }
+
+  function handleDecimal() {
+    if (display === "Erro") {
+      setDisplay("0.");
+      return;
+    }
+
+    if (hasResult) {
+      setDisplay("0.");
+      setHasResult(false);
+      return;
+    }
+
+    if (!canAddDecimal(display)) {
+      return;
+    }
+
+    if (isOperator(getLastCharacter(display))) {
+      setDisplay((current) => `${current}0.`);
+      return;
+    }
+
+    setDisplay((current) => `${current}.`);
+  }
+
+  function handleClear() {
+    setDisplay("0");
+    setHasResult(false);
+  }
+
+  function handleBackspace() {
+    if (display === "Erro" || hasResult) {
+      handleClear();
+      return;
+    }
+
+    setDisplay((current) => {
+      const nextValue = current.slice(0, -1);
+
+      return nextValue || "0";
+    });
+  }
+
+  function handleSquareRoot() {
+    if (display === "Erro") {
+      return;
+    }
+
+    const result = calculateSquareRoot(display);
+
+    if (result === null) {
+      setDisplay("Erro");
+      setHasResult(true);
+      return;
+    }
+
+    setDisplay(formatResult(result));
+    setHasResult(true);
+  }
+
+  function handleEquals() {
+    if (display === "Erro") {
+      return;
+    }
+
+    const lastCharacter = getLastCharacter(display);
+
+    if (isOperator(lastCharacter) || lastCharacter === ".") {
+      return;
+    }
+
+    const result = calculateExpression(display);
+
+    if (result === null) {
+      setDisplay("Erro");
+      setHasResult(true);
+      return;
+    }
+
+    setDisplay(formatResult(result));
+    setHasResult(true);
+  }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.displayBox}>
-        <Text style={styles.display}>{display}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Calculadora</Text>
+          <Text style={styles.subtitle}>
+            Operações matemáticas simples
+          </Text>
+        </View>
+
+        <CalculatorDisplay value={display} />
+
+        <View style={styles.keyboard}>
+          <View style={styles.row}>
+            <CalculatorButton
+              label="AC"
+              onPress={handleClear}
+              variant="action"
+              wide
+            />
+
+            <CalculatorButton
+              label="⌫"
+              onPress={handleBackspace}
+              variant="action"
+            />
+
+            <CalculatorButton
+              label="√"
+              onPress={handleSquareRoot}
+              variant="operator"
+            />
+          </View>
+
+          {NUMBER_BUTTONS.map((row) => (
+            <View key={row.join("")} style={styles.row}>
+              {row.map((number) => (
+                <CalculatorButton
+                  key={number}
+                  label={number}
+                  onPress={() => handleNumber(number)}
+                />
+              ))}
+
+              <CalculatorButton
+                label={OPERATOR_BUTTONS[NUMBER_BUTTONS.indexOf(row)]}
+                onPress={() =>
+                  handleOperator(
+                    OPERATOR_BUTTONS[NUMBER_BUTTONS.indexOf(row)]
+                  )
+                }
+                variant="operator"
+              />
+            </View>
+          ))}
+
+          <View style={styles.row}>
+            <CalculatorButton
+              label="0"
+              onPress={() => handleNumber("0")}
+              wide
+            />
+
+            <CalculatorButton
+              label="."
+              onPress={handleDecimal}
+            />
+
+            <CalculatorButton
+              label="="
+              onPress={handleEquals}
+              variant="operator"
+            />
+          </View>
+        </View>
       </View>
-
-      <View style={styles.row}>
-        <TouchableOpacity
-          style={[styles.button, styles.largeButton]}
-          onPress={() => setDisplay("0")}
-        >
-          <Text style={styles.buttonText}>AC</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={handleSqrt}>
-          <Text style={styles.buttonText}>√</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleOperator("/")}
-        >
-          <Text style={styles.buttonText}>/</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.row}>
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("7")}>
-          <Text style={styles.buttonText}>7</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("8")}>
-          <Text style={styles.buttonText}>8</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("9")}>
-          <Text style={styles.buttonText}>9</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleOperator("*")}
-        >
-          <Text style={styles.buttonText}>*</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.row}>
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("4")}>
-          <Text style={styles.buttonText}>4</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("5")}>
-          <Text style={styles.buttonText}>5</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("6")}>
-          <Text style={styles.buttonText}>6</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleOperator("-")}
-        >
-          <Text style={styles.buttonText}>-</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.row}>
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("1")}>
-          <Text style={styles.buttonText}>1</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("2")}>
-          <Text style={styles.buttonText}>2</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => handleNumber("3")}>
-          <Text style={styles.buttonText}>3</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => handleOperator("+")}
-        >
-          <Text style={styles.buttonText}>+</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.row}>
-        <TouchableOpacity
-          style={[styles.button, styles.largeButton]}
-          onPress={() => handleNumber("0")}
-        >
-          <Text style={styles.buttonText}>0</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={handleDot}>
-          <Text style={styles.buttonText}>.</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={handleEquals}>
-          <Text style={styles.buttonText}>=</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#b5d5f6",
-    paddingTop: 40,
+  },
+
+  container: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
+
+  header: {
+    marginBottom: 16,
+  },
+
+  title: {
+    color: "#172033",
+    fontSize: 30,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  subtitle: {
+    marginTop: 4,
+    color: "#52627a",
+    fontSize: 14,
+    textAlign: "center",
+  },
+
+  keyboard: {
+    width: "100%",
     alignItems: "center",
   },
-  displayBox: {
-    width: 320,
-    height: 80,
-    backgroundColor: "#fdffff",
-    borderWidth: 1,
-    justifyContent: "center",
-    paddingHorizontal: 15,
-  },
-  display: {
-    fontSize: 35,
-    textAlign: "right",
-  },
+
   row: {
+    width: "100%",
     flexDirection: "row",
     justifyContent: "center",
-    gap: 10,
-    marginVertical: 8,
-  },
-  button: {
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    width: 70,
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  largeButton: {
-    width: 140,
-    marginHorizontal: 10,
-  },
-  buttonText: {
-    fontSize: 25,
+    marginVertical: 4,
   },
 });
